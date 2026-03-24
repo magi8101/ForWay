@@ -54,7 +54,7 @@ contains
         real(c_float), pointer :: A(:), B(:), C(:)
         real(c_float), pointer :: packed_a(:), packed_b(:), c_micro(:,:)
         type(c_ptr) :: raw_a, raw_b, raw_c
-        integer :: mc, nc, kc, mr, nr, vec_len
+        integer :: mc, nc, kc, mr, nr
         integer :: i_mc, j_nc, p_kc
         integer :: mc_cur, nc_cur, kc_cur
         integer :: i_mr, j_nr
@@ -70,11 +70,11 @@ contains
         call c_f_pointer(B_cptr, B, [K * N])
         call c_f_pointer(C_cptr, C, [M * N])
 
-        vec_len = int(forway_get_lanes_float())
-        mr = 2 * vec_len
+        mr = int(forway_get_lanes_float())
         nr = 8
         mc = 128
         kc = 128
+
         nc = (N + omp_get_max_threads() - 1) / omp_get_max_threads()
         nc = ((nc + nr - 1) / nr) * nr
         if (nc < nr) nc = nr
@@ -197,7 +197,7 @@ contains
         real(c_double), pointer :: A(:), B(:), C(:)
         real(c_double), pointer :: packed_a(:), packed_b(:), c_micro(:,:)
         type(c_ptr) :: raw_a, raw_b, raw_c
-        integer :: mc, nc, kc, mr, nr, vec_len
+        integer :: mc, nc, kc, mr, nr
         integer :: i_mc, j_nc, p_kc
         integer :: mc_cur, nc_cur, kc_cur
         integer :: i_mr, j_nr
@@ -213,11 +213,11 @@ contains
         call c_f_pointer(B_cptr, B, [K * N])
         call c_f_pointer(C_cptr, C, [M * N])
 
-        vec_len = int(forway_get_lanes_double())
-        mr = 2 * vec_len
+        mr = int(forway_get_lanes_double())
         nr = 8
         mc = 128
         kc = 128
+
         nc = (N + omp_get_max_threads() - 1) / omp_get_max_threads()
         nc = ((nc + nr - 1) / nr) * nr
         if (nc < nr) nc = nr
