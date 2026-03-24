@@ -53,7 +53,11 @@ contains
 
         real(c_float), pointer :: A(:), B(:), C(:)
         real(c_float), pointer :: packed_a(:), packed_b(:), c_micro(:,:)
-        type(c_ptr) :: raw_a, raw_b, raw_c
+        real(c_float), pointer :: global_packed_a(:,:), global_packed_b(:,:), global_c_micro(:,:,:)
+        type(c_ptr) :: raw_a_global, raw_b_global, raw_c_global
+        integer(c_size_t) :: size_a, size_b
+        integer :: max_threads, optimal_threads, tid
+        real(8) :: total_ops
         integer :: mc, nc, kc, mr, nr
         integer :: i_mc, j_nc, p_kc
         integer :: mc_cur, nc_cur, kc_cur
@@ -75,22 +79,44 @@ contains
         mc = 128
         kc = 128
 
-        nc = (N + omp_get_max_threads() - 1) / omp_get_max_threads()
+        max_threads = omp_get_max_threads()
+        total_ops = real(M, 8) * real(N, 8) * real(K, 8)
+        
+        if (total_ops <= 2500000.0_8) then
+            optimal_threads = 1
+        else if (total_ops <= 20000000.0_8) then
+            optimal_threads = 2
+        else if (total_ops <= 150000000.0_8) then
+            optimal_threads = max(1, max_threads / 2)
+        else
+            optimal_threads = max_threads
+        end if
+
+        nc = (N + optimal_threads - 1) / optimal_threads
         nc = ((nc + nr - 1) / nr) * nr
         if (nc < nr) nc = nr
 
-        !$OMP PARALLEL PRIVATE(j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur, num_a_panels, num_b_panels) &
+        size_a = int(mr * kc * ((mc + mr - 1) / mr), c_size_t)
+        size_b = int(kc * nr * ((nc + nr - 1) / nr), c_size_t)
+
+        raw_a_global = forway_aligned_malloc(size_a * int(optimal_threads, c_size_t) * 4_c_size_t)
+        raw_b_global = forway_aligned_malloc(size_b * int(optimal_threads, c_size_t) * 4_c_size_t)
+        raw_c_global = forway_aligned_malloc(int(mr * nr, c_size_t) * int(optimal_threads, c_size_t) * 4_c_size_t)
+
+        call c_f_pointer(raw_a_global, global_packed_a, [size_a, int(optimal_threads, c_size_t)])
+        call c_f_pointer(raw_b_global, global_packed_b, [size_b, int(optimal_threads, c_size_t)])
+        call c_f_pointer(raw_c_global, global_c_micro, [mr, nr, optimal_threads])
+
+        !$OMP PARALLEL NUM_THREADS(optimal_threads) PRIVATE(tid, j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur, num_a_panels, num_b_panels) &
         !$OMP PRIVATE(ii, jj, pp, a_idx, b_idx, c_idx, i_global, j_global, mr_cur, nr_cur) &
         !$OMP PRIVATE(j_panel, j_in, i_panel, i_in, accumulate) &
-        !$OMP PRIVATE(packed_a, packed_b, c_micro, raw_a, raw_b, raw_c)
+        !$OMP PRIVATE(packed_a, packed_b, c_micro, i_mr, j_nr)
 
-        raw_a = forway_aligned_malloc(int(mr * kc * ((mc + mr - 1) / mr), c_size_t) * 4_c_size_t)
-        raw_b = forway_aligned_malloc(int(kc * nr * ((nc + nr - 1) / nr), c_size_t) * 4_c_size_t)
-        raw_c = forway_aligned_malloc(int(mr * nr, c_size_t) * 4_c_size_t)
+        tid = omp_get_thread_num()
 
-        call c_f_pointer(raw_a, packed_a, [mr * kc * ((mc + mr - 1) / mr)])
-        call c_f_pointer(raw_b, packed_b, [kc * nr * ((nc + nr - 1) / nr)])
-        call c_f_pointer(raw_c, c_micro, [mr, nr])
+        call c_f_pointer(c_loc(global_packed_a(1, tid + 1)), packed_a, [size_a])
+        call c_f_pointer(c_loc(global_packed_b(1, tid + 1)), packed_b, [size_b])
+        call c_f_pointer(c_loc(global_c_micro(1, 1, tid + 1)), c_micro, [mr, nr])
 
         !$OMP DO
         do j_nc = 0, N - 1, nc
@@ -100,20 +126,26 @@ contains
                 kc_cur = min(kc, K - p_kc)
 
                 num_b_panels = (nc_cur + nr - 1) / nr
-                do j_panel = 0, num_b_panels - 1
-                    do j_in = 0, nr - 1
-                        jj = j_panel * nr + j_in
-                        if (jj < nc_cur) then
-                            do pp = 0, kc_cur - 1
+                do pp = 0, kc_cur - 1
+                    do j_panel = 0, (nc_cur / nr) - 1
+                        do j_in = 0, nr - 1
+                            jj = j_panel * nr + j_in
+                            b_idx = (p_kc + pp) * ldb + (j_nc + jj)
+                            packed_b(j_panel * kc_cur * nr + pp * nr + j_in + 1) = B(b_idx + 1)
+                        end do
+                    end do
+                    if (mod(nc_cur, nr) /= 0) then
+                        j_panel = nc_cur / nr
+                        do j_in = 0, nr - 1
+                            jj = j_panel * nr + j_in
+                            if (jj < nc_cur) then
                                 b_idx = (p_kc + pp) * ldb + (j_nc + jj)
                                 packed_b(j_panel * kc_cur * nr + pp * nr + j_in + 1) = B(b_idx + 1)
-                            end do
-                        else
-                            do pp = 0, kc_cur - 1
+                            else
                                 packed_b(j_panel * kc_cur * nr + pp * nr + j_in + 1) = 0.0
-                            end do
-                        end if
-                    end do
+                            end if
+                        end do
+                    end if
                 end do
 
                 do i_mc = 0, M - 1, mc
@@ -151,8 +183,8 @@ contains
                             end if
 
                             if (accumulate /= 0_c_int) then
-                                do jj = 1, nr_cur
-                                    do ii = 1, mr_cur
+                                do ii = 1, mr_cur
+                                    do jj = 1, nr_cur
                                         c_idx = (i_global + ii - 1) * ldc + (j_global + jj - 1)
                                         c_micro(ii, jj) = C(c_idx + 1)
                                     end do
@@ -169,8 +201,8 @@ contains
                                 int(mr, c_size_t), &
                                 accumulate)
                             
-                            do jj = 1, nr_cur
-                                do ii = 1, mr_cur
+                            do ii = 1, mr_cur
+                                do jj = 1, nr_cur
                                     c_idx = (i_global + ii - 1) * ldc + (j_global + jj - 1)
                                     C(c_idx + 1) = c_micro(ii, jj)
                                 end do
@@ -183,10 +215,10 @@ contains
         end do
         !$OMP END DO
 
-        call forway_aligned_free(raw_a)
-        call forway_aligned_free(raw_b)
-        call forway_aligned_free(raw_c)
         !$OMP END PARALLEL
+        call forway_aligned_free(raw_a_global)
+        call forway_aligned_free(raw_b_global)
+        call forway_aligned_free(raw_c_global)
     end subroutine
 
     subroutine gemm_double_impl(M, N, K, A_cptr, lda, B_cptr, ldb, C_cptr, ldc) bind(C, name="forway_gemm_double")
@@ -196,7 +228,11 @@ contains
 
         real(c_double), pointer :: A(:), B(:), C(:)
         real(c_double), pointer :: packed_a(:), packed_b(:), c_micro(:,:)
-        type(c_ptr) :: raw_a, raw_b, raw_c
+        real(c_double), pointer :: global_packed_a(:,:), global_packed_b(:,:), global_c_micro(:,:,:)
+        type(c_ptr) :: raw_a_global, raw_b_global, raw_c_global
+        integer(c_size_t) :: size_a, size_b
+        integer :: max_threads, optimal_threads, tid
+        real(8) :: total_ops
         integer :: mc, nc, kc, mr, nr
         integer :: i_mc, j_nc, p_kc
         integer :: mc_cur, nc_cur, kc_cur
@@ -218,22 +254,44 @@ contains
         mc = 128
         kc = 128
 
-        nc = (N + omp_get_max_threads() - 1) / omp_get_max_threads()
+        max_threads = omp_get_max_threads()
+        total_ops = real(M, 8) * real(N, 8) * real(K, 8)
+        
+        if (total_ops <= 2500000.0_8) then
+            optimal_threads = 1
+        else if (total_ops <= 20000000.0_8) then
+            optimal_threads = 2
+        else if (total_ops <= 150000000.0_8) then
+            optimal_threads = max(1, max_threads / 2)
+        else
+            optimal_threads = max_threads
+        end if
+
+        nc = (N + optimal_threads - 1) / optimal_threads
         nc = ((nc + nr - 1) / nr) * nr
         if (nc < nr) nc = nr
 
-        !$OMP PARALLEL PRIVATE(j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur, num_a_panels, num_b_panels) &
+        size_a = int(mr * kc * ((mc + mr - 1) / mr), c_size_t)
+        size_b = int(kc * nr * ((nc + nr - 1) / nr), c_size_t)
+
+        raw_a_global = forway_aligned_malloc(size_a * int(optimal_threads, c_size_t) * 8_c_size_t)
+        raw_b_global = forway_aligned_malloc(size_b * int(optimal_threads, c_size_t) * 8_c_size_t)
+        raw_c_global = forway_aligned_malloc(int(mr * nr, c_size_t) * int(optimal_threads, c_size_t) * 8_c_size_t)
+
+        call c_f_pointer(raw_a_global, global_packed_a, [size_a, int(optimal_threads, c_size_t)])
+        call c_f_pointer(raw_b_global, global_packed_b, [size_b, int(optimal_threads, c_size_t)])
+        call c_f_pointer(raw_c_global, global_c_micro, [mr, nr, optimal_threads])
+
+        !$OMP PARALLEL NUM_THREADS(optimal_threads) PRIVATE(tid, j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur, num_a_panels, num_b_panels) &
         !$OMP PRIVATE(ii, jj, pp, a_idx, b_idx, c_idx, i_global, j_global, mr_cur, nr_cur) &
         !$OMP PRIVATE(j_panel, j_in, i_panel, i_in, accumulate) &
-        !$OMP PRIVATE(packed_a, packed_b, c_micro, raw_a, raw_b, raw_c)
+        !$OMP PRIVATE(packed_a, packed_b, c_micro, i_mr, j_nr)
 
-        raw_a = forway_aligned_malloc(int(mr * kc * ((mc + mr - 1) / mr), c_size_t) * 8_c_size_t)
-        raw_b = forway_aligned_malloc(int(kc * nr * ((nc + nr - 1) / nr), c_size_t) * 8_c_size_t)
-        raw_c = forway_aligned_malloc(int(mr * nr, c_size_t) * 8_c_size_t)
+        tid = omp_get_thread_num()
 
-        call c_f_pointer(raw_a, packed_a, [mr * kc * ((mc + mr - 1) / mr)])
-        call c_f_pointer(raw_b, packed_b, [kc * nr * ((nc + nr - 1) / nr)])
-        call c_f_pointer(raw_c, c_micro, [mr, nr])
+        call c_f_pointer(c_loc(global_packed_a(1, tid + 1)), packed_a, [size_a])
+        call c_f_pointer(c_loc(global_packed_b(1, tid + 1)), packed_b, [size_b])
+        call c_f_pointer(c_loc(global_c_micro(1, 1, tid + 1)), c_micro, [mr, nr])
 
         !$OMP DO
         do j_nc = 0, N - 1, nc
@@ -243,20 +301,26 @@ contains
                 kc_cur = min(kc, K - p_kc)
 
                 num_b_panels = (nc_cur + nr - 1) / nr
-                do j_panel = 0, num_b_panels - 1
-                    do j_in = 0, nr - 1
-                        jj = j_panel * nr + j_in
-                        if (jj < nc_cur) then
-                            do pp = 0, kc_cur - 1
+                do pp = 0, kc_cur - 1
+                    do j_panel = 0, (nc_cur / nr) - 1
+                        do j_in = 0, nr - 1
+                            jj = j_panel * nr + j_in
+                            b_idx = (p_kc + pp) * ldb + (j_nc + jj)
+                            packed_b(j_panel * kc_cur * nr + pp * nr + j_in + 1) = B(b_idx + 1)
+                        end do
+                    end do
+                    if (mod(nc_cur, nr) /= 0) then
+                        j_panel = nc_cur / nr
+                        do j_in = 0, nr - 1
+                            jj = j_panel * nr + j_in
+                            if (jj < nc_cur) then
                                 b_idx = (p_kc + pp) * ldb + (j_nc + jj)
                                 packed_b(j_panel * kc_cur * nr + pp * nr + j_in + 1) = B(b_idx + 1)
-                            end do
-                        else
-                            do pp = 0, kc_cur - 1
+                            else
                                 packed_b(j_panel * kc_cur * nr + pp * nr + j_in + 1) = 0.0_c_double
-                            end do
-                        end if
-                    end do
+                            end if
+                        end do
+                    end if
                 end do
 
                 do i_mc = 0, M - 1, mc
@@ -326,10 +390,10 @@ contains
         end do
         !$OMP END DO
 
-        call forway_aligned_free(raw_a)
-        call forway_aligned_free(raw_b)
-        call forway_aligned_free(raw_c)
         !$OMP END PARALLEL
+        call forway_aligned_free(raw_a_global)
+        call forway_aligned_free(raw_b_global)
+        call forway_aligned_free(raw_c_global)
     end subroutine
 
 end module forway_macro_kernel

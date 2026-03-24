@@ -33,49 +33,68 @@ HWY_ATTR void MicroKernelImpl(
 ) {
     const hn::ScalableTag<T> d;
     using V = hn::Vec<decltype(d)>;
+    const std::size_t vec_len = hn::Lanes(d);
 
-    V c0, c1, c2, c3, c4, c5, c6, c7;
+    V c00, c01, c02, c03, c04, c05, c06, c07;
+    V c10, c11, c12, c13, c14, c15, c16, c17;
+    
     if (accumulate) {
-        c0 = hn::LoadU(d, c_block + 0 * ldc);
-        c1 = hn::LoadU(d, c_block + 1 * ldc);
-        c2 = hn::LoadU(d, c_block + 2 * ldc);
-        c3 = hn::LoadU(d, c_block + 3 * ldc);
-        c4 = hn::LoadU(d, c_block + 4 * ldc);
-        c5 = hn::LoadU(d, c_block + 5 * ldc);
-        c6 = hn::LoadU(d, c_block + 6 * ldc);
-        c7 = hn::LoadU(d, c_block + 7 * ldc);
+        c00 = hn::Load(d, c_block + 0 * ldc + 0 * vec_len); c10 = hn::Load(d, c_block + 0 * ldc + 1 * vec_len);
+        c01 = hn::Load(d, c_block + 1 * ldc + 0 * vec_len); c11 = hn::Load(d, c_block + 1 * ldc + 1 * vec_len);
+        c02 = hn::Load(d, c_block + 2 * ldc + 0 * vec_len); c12 = hn::Load(d, c_block + 2 * ldc + 1 * vec_len);
+        c03 = hn::Load(d, c_block + 3 * ldc + 0 * vec_len); c13 = hn::Load(d, c_block + 3 * ldc + 1 * vec_len);
+        c04 = hn::Load(d, c_block + 4 * ldc + 0 * vec_len); c14 = hn::Load(d, c_block + 4 * ldc + 1 * vec_len);
+        c05 = hn::Load(d, c_block + 5 * ldc + 0 * vec_len); c15 = hn::Load(d, c_block + 5 * ldc + 1 * vec_len);
+        c06 = hn::Load(d, c_block + 6 * ldc + 0 * vec_len); c16 = hn::Load(d, c_block + 6 * ldc + 1 * vec_len);
+        c07 = hn::Load(d, c_block + 7 * ldc + 0 * vec_len); c17 = hn::Load(d, c_block + 7 * ldc + 1 * vec_len);
     } else {
-        c0 = hn::Zero(d);
-        c1 = hn::Zero(d);
-        c2 = hn::Zero(d);
-        c3 = hn::Zero(d);
-        c4 = hn::Zero(d);
-        c5 = hn::Zero(d);
-        c6 = hn::Zero(d);
-        c7 = hn::Zero(d);
+        c00 = hn::Zero(d); c10 = hn::Zero(d);
+        c01 = hn::Zero(d); c11 = hn::Zero(d);
+        c02 = hn::Zero(d); c12 = hn::Zero(d);
+        c03 = hn::Zero(d); c13 = hn::Zero(d);
+        c04 = hn::Zero(d); c14 = hn::Zero(d);
+        c05 = hn::Zero(d); c15 = hn::Zero(d);
+        c06 = hn::Zero(d); c16 = hn::Zero(d);
+        c07 = hn::Zero(d); c17 = hn::Zero(d);
     }
 
     for (std::size_t p = 0; p < kc; ++p) {
-        V a = hn::Load(d, packed_a + p * mr);
+        V a00 = hn::Load(d, packed_a + p * mr + 0 * vec_len); 
+        V a01 = hn::Load(d, packed_a + p * mr + 1 * vec_len);
 
-        c0 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 0]), c0);
-        c1 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 1]), c1);
-        c2 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 2]), c2);
-        c3 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 3]), c3);
-        c4 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 4]), c4);
-        c5 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 5]), c5);
-        c6 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 6]), c6);
-        c7 = hn::MulAdd(a, hn::Set(d, packed_b[p * nr + 7]), c7);
+        c00 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 0]), c00); 
+        c10 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 0]), c10);
+        
+        c01 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 1]), c01); 
+        c11 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 1]), c11);
+        
+        c02 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 2]), c02); 
+        c12 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 2]), c12);
+        
+        c03 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 3]), c03); 
+        c13 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 3]), c13);
+        
+        c04 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 4]), c04); 
+        c14 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 4]), c14);
+        
+        c05 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 5]), c05); 
+        c15 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 5]), c15);
+        
+        c06 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 6]), c06); 
+        c16 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 6]), c16);
+        
+        c07 = hn::MulAdd(a00, hn::Set(d, packed_b[p * nr + 7]), c07); 
+        c17 = hn::MulAdd(a01, hn::Set(d, packed_b[p * nr + 7]), c17);
     }
 
-    hn::StoreU(c0, d, c_block + 0 * ldc);
-    hn::StoreU(c1, d, c_block + 1 * ldc);
-    hn::StoreU(c2, d, c_block + 2 * ldc);
-    hn::StoreU(c3, d, c_block + 3 * ldc);
-    hn::StoreU(c4, d, c_block + 4 * ldc);
-    hn::StoreU(c5, d, c_block + 5 * ldc);
-    hn::StoreU(c6, d, c_block + 6 * ldc);
-    hn::StoreU(c7, d, c_block + 7 * ldc);
+    hn::Store(c00, d, c_block + 0 * ldc + 0 * vec_len); hn::Store(c10, d, c_block + 0 * ldc + 1 * vec_len);
+    hn::Store(c01, d, c_block + 1 * ldc + 0 * vec_len); hn::Store(c11, d, c_block + 1 * ldc + 1 * vec_len);
+    hn::Store(c02, d, c_block + 2 * ldc + 0 * vec_len); hn::Store(c12, d, c_block + 2 * ldc + 1 * vec_len);
+    hn::Store(c03, d, c_block + 3 * ldc + 0 * vec_len); hn::Store(c13, d, c_block + 3 * ldc + 1 * vec_len);
+    hn::Store(c04, d, c_block + 4 * ldc + 0 * vec_len); hn::Store(c14, d, c_block + 4 * ldc + 1 * vec_len);
+    hn::Store(c05, d, c_block + 5 * ldc + 0 * vec_len); hn::Store(c15, d, c_block + 5 * ldc + 1 * vec_len);
+    hn::Store(c06, d, c_block + 6 * ldc + 0 * vec_len); hn::Store(c16, d, c_block + 6 * ldc + 1 * vec_len);
+    hn::Store(c07, d, c_block + 7 * ldc + 0 * vec_len); hn::Store(c17, d, c_block + 7 * ldc + 1 * vec_len);
 }
 
 void MicroKernelFloat(
@@ -106,12 +125,12 @@ void MicroKernelDouble(
 
 std::size_t GetLanesFloat() {
     const hn::ScalableTag<float> d;
-    return hn::Lanes(d);
+    return hn::Lanes(d) * 2;
 }
 
 std::size_t GetLanesDouble() {
     const hn::ScalableTag<double> d;
-    return hn::Lanes(d);
+    return hn::Lanes(d) * 2;
 }
 
 }
