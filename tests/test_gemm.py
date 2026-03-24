@@ -107,7 +107,7 @@ def run_benchmarks():
     print("\nBenchmarking against np.matmul...")
     print("-" * 70)
 
-    sizes = [128, 256, 512, 1024]
+    sizes = [128, 256, 512, 1024, 2048, 4096]
     dtypes = [np.float32, np.float64]
 
     for dtype in dtypes:

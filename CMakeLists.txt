@@ -49,12 +49,12 @@ if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-form -fno-underscoring -O3 -ffast-math -march=native")
 endif()
 
-add_library(micro_kernel STATIC src/micro_kernel.cpp)
+add_library(micro_kernel STATIC src/micro_kernel.cpp rng/src/rng_micro_kernel.cpp)
 target_link_libraries(micro_kernel PRIVATE hwy)
 target_compile_options(micro_kernel PRIVATE -O3 -ffast-math -march=native)
-target_include_directories(micro_kernel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(micro_kernel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/rng/src)
 
-add_library(macro_kernel STATIC src/macro_kernel.f90)
+add_library(macro_kernel STATIC src/macro_kernel.f90 rng/src/rng_macro_kernel.f90)
 target_link_libraries(macro_kernel PRIVATE OpenMP::OpenMP_Fortran)
 target_link_libraries(macro_kernel PRIVATE micro_kernel)
 

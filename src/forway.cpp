@@ -20,6 +20,8 @@ extern "C" {
         const double* B, int ldb,
         double* C, int ldc
     );
+
+    void forway_random_uniform_float(int N, float* C_ptr, int64_t seed);
 }
 
 void gemm_float(
@@ -90,6 +92,11 @@ void gemm_double(
     );
 }
 
+void random_uniform(nb::ndarray<float, nb::ndim<1>, nb::c_contig, nb::device::cpu> c, int64_t seed) {
+    std::size_t N = c.size();
+    forway_random_uniform_float(static_cast<int>(N), c.data(), seed);
+}
+
 NB_MODULE(forway, m) {
     m.def("gemm", &gemm_float,
         nb::arg("A"), nb::arg("B"), nb::arg("C"),
@@ -108,4 +115,11 @@ NB_MODULE(forway, m) {
         "  B: Input matrix of shape (K, N), float64, C-contiguous\n"
         "  C: Output matrix of shape (M, N), float64, C-contiguous\n\n"
         "Note: C is overwritten with the result A @ B.");
+
+    m.def("random_uniform", &random_uniform,
+        nb::arg("C"), nb::arg("seed"),
+        "Fill array C with uniformly distributed random float32s in [0, 1) using ChaCha8.\n\n"
+        "Parameters:\n"
+        "  C: Output array of shape (N,), float32, C-contiguous\n"
+        "  seed: 64-bit integer seed for the PRNG\n");
 }

@@ -76,8 +76,8 @@ contains
 
         mr = int(forway_get_lanes_float())
         nr = 8
-        mc = 128
-        kc = 128
+        mc = 256
+        kc = 256
 
         max_threads = omp_get_max_threads()
         total_ops = real(M, 8) * real(N, 8) * real(K, 8)
@@ -182,6 +182,7 @@ contains
                                 accumulate = 1_c_int
                             end if
 
+                            ! 1. Gather scattered Row-Major C into continuous Column-Major c_micro
                             if (accumulate /= 0_c_int) then
                                 do ii = 1, mr_cur
                                     do jj = 1, nr_cur
@@ -191,6 +192,7 @@ contains
                                 end do
                             end if
                             
+                            ! 2. Execute AVX-512 Math on perfectly aligned contiguous memory
                             call forway_micro_kernel_float( &
                                 c_loc(packed_a(i_mr * kc_cur * mr + 1)), &
                                 c_loc(packed_b(j_nr * kc_cur * nr + 1)), &
@@ -201,6 +203,7 @@ contains
                                 int(mr, c_size_t), &
                                 accumulate)
                             
+                            ! 3. Scatter the computed continuous block back to Row-Major C
                             do ii = 1, mr_cur
                                 do jj = 1, nr_cur
                                     c_idx = (i_global + ii - 1) * ldc + (j_global + jj - 1)
@@ -252,7 +255,7 @@ contains
         mr = int(forway_get_lanes_double())
         nr = 8
         mc = 128
-        kc = 128
+        kc = 256
 
         max_threads = omp_get_max_threads()
         total_ops = real(M, 8) * real(N, 8) * real(K, 8)
@@ -357,15 +360,17 @@ contains
                                 accumulate = 1_c_int
                             end if
 
+                            ! 1. Gather scattered Row-Major C into continuous Column-Major c_micro
                             if (accumulate /= 0_c_int) then
-                                do jj = 1, nr_cur
-                                    do ii = 1, mr_cur
+                                do ii = 1, mr_cur
+                                    do jj = 1, nr_cur
                                         c_idx = (i_global + ii - 1) * ldc + (j_global + jj - 1)
                                         c_micro(ii, jj) = C(c_idx + 1)
                                     end do
                                 end do
                             end if
                             
+                            ! 2. Execute AVX-512 Math on perfectly aligned contiguous memory
                             call forway_micro_kernel_double( &
                                 c_loc(packed_a(i_mr * kc_cur * mr + 1)), &
                                 c_loc(packed_b(j_nr * kc_cur * nr + 1)), &
@@ -376,8 +381,9 @@ contains
                                 int(mr, c_size_t), &
                                 accumulate)
                             
-                            do jj = 1, nr_cur
-                                do ii = 1, mr_cur
+                            ! 3. Scatter the computed continuous block back to Row-Major C
+                            do ii = 1, mr_cur
+                                do jj = 1, nr_cur
                                     c_idx = (i_global + ii - 1) * ldc + (j_global + jj - 1)
                                     C(c_idx + 1) = c_micro(ii, jj)
                                 end do
