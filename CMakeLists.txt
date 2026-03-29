@@ -25,10 +25,11 @@ else()
     endif()
 endif()
 
-# Enable fp16 support for ARM macOS (Apple Silicon) when using GCC/Homebrew
+# Enable hardware-specific targets for ARM macOS (Apple Silicon) when using GCC/Homebrew
+# Apple Silicon always supports fp16, NEON, and other SIMD features.
 if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+fp16")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -march=armv8.2-a+fp16")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=apple-m1")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -mcpu=apple-m1")
 endif()
 
 include(FetchContent)
