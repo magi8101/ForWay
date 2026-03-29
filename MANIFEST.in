@@ -1,0 +1,10 @@
+include CMakeLists.txt
+include pyproject.toml
+include README.md
+
+recursive-include src *.cpp *.f90 *.h
+recursive-include rng *.cpp *.f90 *.h
+recursive-include metrics *.cpp *.h
+recursive-include activations *.cpp *.h
+recursive-include reductions *.cpp *.h
+recursive-include sort *.cpp *.h

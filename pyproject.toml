@@ -1,0 +1,60 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.4"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "forway"
+version = "0.1.0"
+description = "High-Performance Numerical Computing Engine — AVX-512/NEON SIMD + OpenMP, powered by Google Highway"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "magisharma", email = "sharmamagi0@gmail.com"},
+]
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Programming Language :: Fortran",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Homepage = "https://github.com/magi8101/ForWay"
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+wheel.packages = ["."]
+wheel.install-dir = "forway"
+build-dir = "build/{wheel_tag}"
+
+[tool.scikit-build.cmake.define]
+HWY_ENABLE_TESTS = "OFF"
+HWY_ENABLE_EXAMPLES = "OFF"
+HWY_ENABLE_CONTRIB = "ON"
+
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
+skip = "*-musllinux_* *-win32 *_i686"
+test-requires = "numpy"
+test-command = "python -c \"import forway; print('ForWay wheel OK')\""
+
+[tool.cibuildwheel.linux]
+before-build = "yum install -y gcc-gfortran || apt-get install -y gfortran"
+archs = ["x86_64", "aarch64"]
+environment = { CMAKE_ARGS="-DCMAKE_CXX_FLAGS='-O3 -ffast-math' -DCMAKE_Fortran_FLAGS='-O3 -ffast-math -ffree-form -fno-underscoring'" }
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+environment = { CMAKE_ARGS="-DCMAKE_CXX_FLAGS='-O3 -ffast-math' -DCMAKE_Fortran_FLAGS='-O3 -ffast-math -ffree-form -fno-underscoring'", MACOSX_DEPLOYMENT_TARGET="11.0" }
+before-build = "brew install gcc"
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]

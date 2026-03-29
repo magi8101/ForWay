@@ -60,7 +60,7 @@ HWY_ATTR void MicroKernelImpl(
 
     std::size_t p = 0;
     
-    // Main pipelined loop (Unrolled by 2 to hide memory latency)
+    // Main pipelined loop 
     for (; p + 1 < kc; p += 2) {
         // --- TICK 0 ---
         V a00 = hn::Load(d, packed_a + p * mr + 0 * vec_len); 
@@ -119,7 +119,7 @@ HWY_ATTR void MicroKernelImpl(
         c07 = hn::MulAdd(a10, b1_7, c07); c17 = hn::MulAdd(a11, b1_7, c17);
     }
 
-    // Safe remainder loop to prevent segfaults on odd matrices (e.g. 7x13x11)
+    // Safe remainder loop to prevent segfaults on odd matrices 
     for (; p < kc; ++p) {
         V a00 = hn::Load(d, packed_a + p * mr + 0 * vec_len); 
         V a01 = hn::Load(d, packed_a + p * mr + 1 * vec_len);
