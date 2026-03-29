@@ -91,24 +91,28 @@ HWY_ATTR void ChaCha8MicroKernelImpl(
 
         V32 float_one = hn::BitCast(d32, hn::Set(d_f32, 1.0f));
         
-        V32 states[16] = {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15};
-        VF32 f_states[16];
-        for(int k=0; k<16; k++) {
-            V32 mantissa = hn::ShiftRight<9>(states[k]);
-            V32 combined = hn::Or(float_one, mantissa);
-            f_states[k] = hn::Sub(hn::BitCast(d_f32, combined), hn::Set(d_f32, 1.0f));
-        }
+        // ARM SVE Fix: Vectors are 'sizeless' and cannot be elements of a standard C++ array.
+        // We must unroll the conversion and store operations for s0...s15 individually.
+        auto process = [&](auto s, std::size_t k, float* buf) {
+             V32 mantissa = hn::ShiftRight<9>(s);
+             V32 combined = hn::Or(float_one, mantissa);
+             VF32 f = hn::Sub(hn::BitCast(d_f32, combined), hn::Set(d_f32, 1.0f));
+             if (p + output_stride <= num_elements) {
+                 hn::Stream(f, d_f32, output_array + p + k * lanes);
+             } else {
+                 hn::StoreU(f, d_f32, buf + k * lanes);
+             }
+        };
 
-        // L3 Cache Bypass logic embedded.
-        if (p + output_stride <= num_elements) {
-            for(int k=0; k<16; k++) {
-                hn::Stream(f_states[k], d_f32, output_array + p + k * lanes);
-            }
-        } else {
-            alignas(64) float tmp_buffer[16 * 64]; 
-            for(int k=0; k<16; k++) {
-                hn::StoreU(f_states[k], d_f32, tmp_buffer + k * lanes);
-            }
+        alignas(64) float tmp_buffer[16 * 64]; 
+        float* b = (p + output_stride <= num_elements) ? nullptr : tmp_buffer;
+
+        process(s0, 0, b);   process(s1, 1, b);   process(s2, 2, b);   process(s3, 3, b);
+        process(s4, 4, b);   process(s5, 5, b);   process(s6, 6, b);   process(s7, 7, b);
+        process(s8, 8, b);   process(s9, 9, b);   process(s10, 10, b); process(s11, 11, b);
+        process(s12, 12, b); process(s13, 13, b); process(s14, 14, b); process(s15, 15, b);
+
+        if (p + output_stride > num_elements) {
             std::memcpy(output_array + p, tmp_buffer, (num_elements - p) * sizeof(float));
         }
 
