@@ -57,7 +57,7 @@ find_package(Python 3.9 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 find_package(OpenMP COMPONENTS Fortran CXX REQUIRED)
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O3 -ffree-form -fno-underscoring -ffast-math")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O3 -ffree-form -fno-underscoring -ffast-math -ffree-line-length-none")
     if(NOT FORWAY_PORTABLE)
         set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -march=native")
     endif()

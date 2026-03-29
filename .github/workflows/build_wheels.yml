@@ -15,13 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+        os: [ubuntu-latest, windows-latest, macos-14]
         # macos-13 = x86_64, macos-14 = arm64 (M1)
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install GFortran (Ubuntu)
         if: runner.os == 'Linux'
@@ -31,7 +29,10 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install gcc
-          echo "FC=$(brew --prefix)/bin/gfortran-14" >> $GITHUB_ENV
+          BREW_GCC_BIN="$(brew --prefix)/bin"
+          echo "CC=$BREW_GCC_BIN/gcc-14" >> $GITHUB_ENV
+          echo "CXX=$BREW_GCC_BIN/g++-14" >> $GITHUB_ENV
+          echo "FC=$BREW_GCC_BIN/gfortran-14" >> $GITHUB_ENV
 
       - name: Install GFortran (Windows)
         if: runner.os == 'Windows'
@@ -58,11 +59,9 @@ jobs:
           CIBW_BEFORE_BUILD_LINUX: "yum install -y gcc-gfortran || apt-get install -y gfortran"
           CIBW_ENVIRONMENT: >
             CMAKE_ARGS="-DFORWAY_PORTABLE=ON"
-          CIBW_TEST_REQUIRES: "numpy torch scipy"
+          CIBW_TEST_REQUIRES: "numpy"
           CIBW_TEST_COMMAND: >
             python {project}/test/benchmarks/benchmark.py
-          CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel"
-          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path %PATH% -v -w {dest_dir} {wheel}"
 
       - uses: actions/upload-artifact@v4
         with:

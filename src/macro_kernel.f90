@@ -7,7 +7,8 @@ module forway_macro_kernel
     public :: gemm_float_impl, gemm_double_impl
 
     interface
-        subroutine forway_micro_kernel_float(packed_a, packed_b, c_block, mr, nr, kc, ldc, accumulate) bind(C, name="forway_micro_kernel_float")
+        subroutine forway_micro_kernel_float(packed_a, packed_b, c_block, mr, nr, kc, ldc, accumulate) &
+            bind(C, name="forway_micro_kernel_float")
             import :: c_ptr, c_size_t, c_int
             type(c_ptr), value, intent(in) :: packed_a
             type(c_ptr), value, intent(in) :: packed_b
@@ -16,7 +17,8 @@ module forway_macro_kernel
             integer(c_int), value, intent(in) :: accumulate
         end subroutine
 
-        subroutine forway_micro_kernel_double(packed_a, packed_b, c_block, mr, nr, kc, ldc, accumulate) bind(C, name="forway_micro_kernel_double")
+        subroutine forway_micro_kernel_double(packed_a, packed_b, c_block, mr, nr, kc, ldc, accumulate) &
+            bind(C, name="forway_micro_kernel_double")
             import :: c_ptr, c_size_t, c_int
             type(c_ptr), value, intent(in) :: packed_a
             type(c_ptr), value, intent(in) :: packed_b
@@ -105,10 +107,11 @@ contains
 
         call c_f_pointer(raw_a_global, global_packed_a, [size_a, int(optimal_threads, c_size_t)])
         call c_f_pointer(raw_b_global, global_packed_b, [size_b, int(optimal_threads, c_size_t)])
-        call c_f_pointer(raw_c_global, global_c_micro, [mr, nr, optimal_threads])
-
-        !$OMP PARALLEL NUM_THREADS(optimal_threads) PRIVATE(tid, j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur, num_a_panels, num_b_panels) &
-        !$OMP PRIVATE(ii, jj, pp, a_idx, b_idx, c_idx, i_global, j_global, mr_cur, nr_cur) &
+        !$OMP PARALLEL NUM_THREADS(optimal_threads) &
+        !$OMP PRIVATE(tid, j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur) &
+        !$OMP PRIVATE(num_a_panels, num_b_panels) &
+        !$OMP PRIVATE(ii, jj, pp, a_idx, b_idx, c_idx, i_global) &
+        !$OMP PRIVATE(j_global, mr_cur, nr_cur) &
         !$OMP PRIVATE(j_panel, j_in, i_panel, i_in, accumulate) &
         !$OMP PRIVATE(packed_a, packed_b, c_micro, i_mr, j_nr)
 
@@ -285,8 +288,11 @@ contains
         call c_f_pointer(raw_b_global, global_packed_b, [size_b, int(optimal_threads, c_size_t)])
         call c_f_pointer(raw_c_global, global_c_micro, [mr, nr, optimal_threads])
 
-        !$OMP PARALLEL NUM_THREADS(optimal_threads) PRIVATE(tid, j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur, num_a_panels, num_b_panels) &
-        !$OMP PRIVATE(ii, jj, pp, a_idx, b_idx, c_idx, i_global, j_global, mr_cur, nr_cur) &
+        !$OMP PARALLEL NUM_THREADS(optimal_threads) &
+        !$OMP PRIVATE(tid, j_nc, nc_cur, p_kc, kc_cur, i_mc, mc_cur) &
+        !$OMP PRIVATE(num_a_panels, num_b_panels) &
+        !$OMP PRIVATE(ii, jj, pp, a_idx, b_idx, c_idx, i_global) &
+        !$OMP PRIVATE(j_global, mr_cur, nr_cur) &
         !$OMP PRIVATE(j_panel, j_in, i_panel, i_in, accumulate) &
         !$OMP PRIVATE(packed_a, packed_b, c_micro, i_mr, j_nr)
 

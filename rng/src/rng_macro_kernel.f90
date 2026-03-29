@@ -7,7 +7,8 @@ module forway_rng_macro_kernel
     public :: forway_random_uniform_float
 
     interface
-        subroutine forway_chacha8_micro_kernel_float(output_array, num_elements, seed, start_counter) bind(C, name="forway_chacha8_micro_kernel_float")
+        subroutine forway_chacha8_micro_kernel_float(output_array, num_elements, seed, start_counter) &
+            bind(C, name="forway_chacha8_micro_kernel_float")
             import :: c_ptr, c_size_t, c_int64_t
             type(c_ptr), value :: output_array
             integer(c_size_t), value, intent(in) :: num_elements
@@ -23,7 +24,8 @@ module forway_rng_macro_kernel
 
 contains
 
-    subroutine forway_random_uniform_float(N, C_cptr, seed) bind(C, name="forway_random_uniform_float")
+    subroutine forway_random_uniform_float(N, C_cptr, seed) &
+        bind(C, name="forway_random_uniform_float")
         integer(c_int), value, intent(in) :: N
         type(c_ptr), value :: C_cptr
         integer(c_int64_t), value, intent(in) :: seed
