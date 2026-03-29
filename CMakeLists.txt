@@ -25,6 +25,12 @@ else()
     endif()
 endif()
 
+# Enable fp16 support for ARM macOS (Apple Silicon) when using GCC/Homebrew
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+fp16")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -march=armv8.2-a+fp16")
+endif()
+
 include(FetchContent)
 
 FetchContent_Declare(
